@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import os
 # request フォームから送信した情報を扱うためのモジュール
 # redirect  ページの移動
