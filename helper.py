@@ -27,5 +27,5 @@ def get_hsv_info(hsv, hue_constant: int):
     avg_s = s/total_pixel
     avg_v = v/total_pixel
     array_hue_category_list = np.array(hue_category_list)
-    hue_category = stats.mode(array_hue_category_list)		
+    hue_category = int(stats.mode(array_hue_category_list).mode[0])	
     return hue_category, avg_s, avg_v
