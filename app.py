@@ -49,6 +49,7 @@ def uploads_file():
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
             # アップロード後のページに転送
             return render_template("index.html")
+            # hey
             # return redirect(url_for('uploaded_file', filename=filename))
     return render_template("index.html")
 
