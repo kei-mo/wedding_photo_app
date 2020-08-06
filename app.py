@@ -7,7 +7,7 @@ from flask import Flask, request, redirect, url_for, render_template, current_ap
 from werkzeug.utils import secure_filename
 # 画像のダウンロード
 from flask import send_from_directory
-from livereload import Server, shell
+# from livereload import Server, shell
 import numpy as np
 from helper import get_hsv_from_path, get_hsv_info
 import pickle
@@ -22,9 +22,9 @@ app = Flask(__name__)
 # https://github.com/lepture/python-livereload/issues/144
 app.debug = True
 # print(app.wsgi_app) -> <bound method Flask.wsgi_app of <Flask 'app'>>
-server = Server(app.wsgi_app)
+# server = Server(app.wsgi_app)
 
-server.watch('./uploads', )
+# server.watch('./uploads', )
 # server.serve(watch)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
