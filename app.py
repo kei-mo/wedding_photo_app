@@ -7,7 +7,7 @@ from flask import Flask, request, redirect, url_for, render_template, current_ap
 from werkzeug.utils import secure_filename
 # 画像のダウンロード
 from flask import send_from_directory
-from livereload import Server, shell
+# from livereload import Server, shell
 import numpy as np
 from helper import get_hsv_from_path, get_hsv_info
 import pickle
