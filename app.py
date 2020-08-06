@@ -85,6 +85,11 @@ def uploads_file():
         # target.npyを画像にする下に手渡す
         return render_template("index.html")
 
+
+@app.route('/preview', methods=['GET', 'POST'])
+def preview():
+    return render_template("preview.html")
+
 @app.route('/admin', methods=['GET', 'POST'])
 def set_target():
     # リクエストがポストかどうかの判別
