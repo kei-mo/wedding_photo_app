@@ -13,10 +13,14 @@ from helper import get_hsv_from_path, get_hsv_info
 import pickle
 import cv2
 import copy
+import shutil
+from PIL import Image
+
 
 # 画像のアップロード先のディレクトリ
 UPLOAD_FOLDER = './uploads'
 main_pic_path = './static/img/header.jpg'
+orig_pic_path = './static/img/orig.jpg'
 
 # アップロードされる拡張子の制限
 ALLOWED_EXTENSIONS = set(['png', 'jpg', 'gif'])
@@ -32,6 +36,8 @@ app.debug = True
 # server.serve(watch)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAIN_PIC_PATH'] = main_pic_path
+app.config['ORIG_PIC_PATH'] = orig_pic_path
+
 
 # global constant
 hue_constant = 18
@@ -39,6 +45,7 @@ pixel_resolution = 30
 
 # global variable
 hue_block = []
+full_resolution = (2400, 1800)
 
 @app.after_request
 def add_header(r):
@@ -102,6 +109,16 @@ def uploads_file():
                     # cv2.cvtColor
             img_target2 = cv2.cvtColor(hsv_target, cv2.COLOR_HSV2BGR)
             cv2.imwrite(app.config['MAIN_PIC_PATH'],img_target2)
+
+            img1 = Image.open(app.config['MAIN_PIC_PATH'])
+            img1.putalpha(80)
+            img2 = Image.open(app.config['ORIG_PIC_PATH'])
+            img2.putalpha(250)
+            bg = Image.new("RGBA", full_resolution, (255, 255, 255, 0))
+            bg.paste(img2, (0, 0), img2)
+            bg.paste(img1, (0, 0), img1)
+            bg = bg.convert("RGB")
+            bg.save(app.config['MAIN_PIC_PATH'])
             # img = Image.fromarray(hsv)
             return render_template("index.html")
     if request.method == 'GET':
@@ -135,10 +152,14 @@ def set_target():
             filename = secure_filename(file.filename)
             # ファイルの保存
             file.save(app.config['MAIN_PIC_PATH'])
-            # file.save(os.path.join(app.config['UPLOAD_FOLDER'], "original_target.jpg"))
+            # file.save(app.config['ORIG_PIC_PATH'])
             hsv = get_hsv_from_path(app.config['MAIN_PIC_PATH'])
             # hsv = get_hsv_from_path(os.path.join(app.config['UPLOAD_FOLDER'], "header.jpg"))
-
+            hsv_shape = hsv.shape #(x,y,3)
+            # print(hsv_shape)
+            scaled_y = round(full_resolution[0] / hsv_shape[0] * hsv_shape[1])
+            # hsv = cv2.resize(hsv , full_resolution)
+            hsv = cv2.resize(hsv , (full_resolution[0], scaled_y))
             with open("target.npy", "wb") as f:
                 np.save(f, hsv)
             # target.npyを使ってhue_blockの作成
@@ -153,6 +174,9 @@ def set_target():
                     hue_block[hue_category].append((i,j,avg_s,avg_v))
             with open("hue_block.pkl", "wb") as f:
                 pickle.dump(hue_block, f)
+
+            shutil.copyfile(app.config['MAIN_PIC_PATH'], app.config['ORIG_PIC_PATH'])
+            print("resize done")
 
             return redirect(url_for("uploads_file"))
     return render_template("admin.html")
