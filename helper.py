@@ -3,11 +3,27 @@ from numpy import asarray
 import cv2
 from scipy import stats
 import numpy as np
+
+def get_rgb_from_path(path):
+    image  = Image.open(path) # TODO:opencvに書き直す
+    rgb = asarray(image)[:,:,:3]
+    return rgb
+
+
+def get_bgr_info(img):
+    avg_b = int(np.mean(img[:,:,0]))
+    avg_g = int(np.mean(img[:,:,1]))
+    avg_r = int(np.mean(img[:,:,2]))
+    return avg_b, avg_g, avg_r
+
+
 def get_hsv_from_path(path):
     image  = Image.open(path)
     data = asarray(image)
     hsv = cv2.cvtColor(data, cv2.COLOR_BGR2HSV)
     return hsv
+
+    
 
 def get_hsv_info(hsv, hue_constant: int):
     size_3d_array = hsv.shape

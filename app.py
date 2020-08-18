@@ -9,7 +9,7 @@ from werkzeug.utils import secure_filename
 from flask import send_from_directory
 # from livereload import Server, shell
 import numpy as np
-from helper import get_hsv_from_path, get_hsv_info
+from helper import get_hsv_from_path, get_hsv_info,get_bgr_info,get_rgb_from_path
 import pickle
 import cv2
 import copy
@@ -79,31 +79,50 @@ def uploads_file():
             filename = secure_filename(file.filename)
             # ファイルの保存
             file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            with open("target.npy", "rb") as f:
-                hsv_target = np.load(f)
+
+            # 必要な情報の読み込み
             try:
-                with open("hue_block.pkl", "rb") as f:
-                    hue_block = pickle.load(f)
+                with open("rgb_block.pkl","rb") as f:
+                    rgb_block = pickle.load(f)
             except:
                 raise Exception("perhaps no pkl file.")
-            hsv = get_hsv_from_path(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            hsv = cv2.resize(hsv , (pixel_resolution, pixel_resolution))
-            # TODO:target.npyの更新
-            hue, s, v = get_hsv_info(hsv, hue_constant)
-            for i,j,avg_s,avg_v in hue_block[hue]:
-                hsv_target[i*pixel_resolution : (i + 1) * pixel_resolution, \
-                            j*pixel_resolution : (j + 1) * pixel_resolution, :] = hsv
-            # 画像のhue, sat, briを計算
-            # 正方形にする
-            # hue_blockの対象カテゴリを最新の画像で置換
-            # アップロード後のページに転送
-            hsv_target = np.array(hsv_target)
+            
+            rgb_target = np.load('target.npy')
+            allocated = np.load('allocated.npy')
+    
 
-                    # cv2.cvtColor
-            img_target2 = cv2.cvtColor(hsv_target, cv2.COLOR_HSV2BGR)
-            cv2.imwrite(app.config['MAIN_PIC_PATH'],img_target2)
+            # upload された画像のr,g,bの平均を計算
+            rgb = get_rgb_from_path(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            rgb = cv2.resize(rgb , (pixel_resolution, pixel_resolution))
+            r,g,b = np.mean(rgb[:,:,0]), np.mean(rgb[:,:,1]), np.mean(rgb[:,:,2])
+
+            # 距離を計算
+            deltaR, deltaG, deltaB = rgb_block[:,:,0] - r,rgb_block[:,:,0] - g,rgb_block[:,:,0] - b
+            dist = np.sqrt(2*deltaR**2 + 4*deltaG**2 + 3*deltaB**2) # 距離の計算　blockw*blockhの二次元行列
+
+            # dist が一定の値以下のblock
+            thresh = 50
+            overwrite = dist<thresh # blockw*blockhの二次元行列にboolenが入った形
+            overwrite = (overwrite &  np.logical_not(allocated)) #すでに挿入されているところには入れない
+            allocated = (overwrite | allocated)
+            
+            # 挿入
+            insert_posy,insert_posx = np.where(overwrite==True) # 置き換える座標を撮ってくる
+            
+            print(rgb_target.shape, rgb.shape)
+            for x,y in zip(insert_posx,insert_posy):
+                rgb_target[y*pixel_resolution : (y + 1) * pixel_resolution, \
+                            x*pixel_resolution : (x + 1) * pixel_resolution, :] = rgb
+
+            # 画像保存　更新
+            bgr_target = cv2.cvtColor(rgb_target, cv2.COLOR_RGB2BGR)
+            cv2.imwrite(app.config['MAIN_PIC_PATH'],bgr_target)
             # img = Image.fromarray(hsv)
+
+            np.save('target.npy',rgb_target)
+            np.save('allocated.npy',allocated)
             return render_template("index.html")
+
     if request.method == 'GET':
         print(current_app)
         print(dir(current_app))
@@ -133,28 +152,25 @@ def set_target():
         if file and allwed_file(file.filename):
             # 危険な文字を削除（サニタイズ処理）
             filename = secure_filename(file.filename)
+            
             # ファイルの保存
             file.save(app.config['MAIN_PIC_PATH'])
-            # file.save(os.path.join(app.config['UPLOAD_FOLDER'], "original_target.jpg"))
-            hsv = get_hsv_from_path(app.config['MAIN_PIC_PATH'])
-            # hsv = get_hsv_from_path(os.path.join(app.config['UPLOAD_FOLDER'], "header.jpg"))
+            rgb = get_rgb_from_path(app.config['MAIN_PIC_PATH'])
+            np.save("target.npy",rgb)
 
-            with open("target.npy", "wb") as f:
-                np.save(f, hsv)
-            # target.npyを使ってhue_blockの作成
-            max_0dim = hsv.shape[0] // pixel_resolution
-            max_1dim = hsv.shape[1] // pixel_resolution
-            hue_block = [[] for _ in range(hue_constant)]
-            for i in range(max_0dim):
-                for j in range(max_1dim):
-                    block_hsv = hsv[i*pixel_resolution : (i + 1) * pixel_resolution, \
-                                    j*pixel_resolution : (j + 1) * pixel_resolution, :]
-                    hue_category, avg_s, avg_v = get_hsv_info(block_hsv, hue_constant)
-                    hue_block[hue_category].append((i,j,avg_s,avg_v))
-            with open("hue_block.pkl", "wb") as f:
-                pickle.dump(hue_block, f)
-
-            return redirect(url_for("uploads_file"))
+            h,w,cv = rgb.shape
+            wb = w // pixel_resolution
+            hb = h // pixel_resolution
+            rgb_block = np.empty([hb,wb,3],dtype=int)
+            for x in range(wb):
+                for y in range(hb):
+                    block = rgb[pixel_resolution*y:pixel_resolution*y + pixel_resolution, pixel_resolution*x:pixel_resolution*x+pixel_resolution,    :]
+                    avg_b, avg_g, avg_r = get_bgr_info(block)
+                    rgb_block[y,x,:] = [avg_b, avg_g, avg_r] 
+                with open("rgb_block.pkl", "wb") as f:
+                    pickle.dump(rgb_block, f)
+            allocated = np.zeros((hb,wb),dtype=bool) # 初期化
+            np.save('allocated.npy',allocated)
     return render_template("admin.html")
 
 @app.route('/uploads/<filename>')
