@@ -179,8 +179,13 @@ def set_target():
 
             rgb = get_rgb_from_path(app.config['MAIN_PIC_PATH'])
             rgb_shape = rgb.shape #(x,y,3)
+            print(rgb_shape)
             scaled_y = round(full_resolution[0] / rgb_shape[0] * rgb_shape[1])
-            rgb = cv2.resize(rgb , (full_resolution[0], scaled_y))
+            print("full res")
+            print(full_resolution)
+            print((full_resolution[0], scaled_y))
+            rgb = cv2.resize(rgb , (scaled_y, full_resolution[0]))
+            print(rgb.shape)
             np.save("target.npy",rgb)
             # TODO orig_picとしてsaveする
                         # rgb = rgb.convert("RGB")
