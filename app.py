@@ -45,7 +45,7 @@ pixel_resolution = 30
 
 # global variable
 hue_block = []
-full_resolution = (1920, 1080)
+full_resolution = (1080, 1920)
 
 @app.after_request
 def add_header(r):
