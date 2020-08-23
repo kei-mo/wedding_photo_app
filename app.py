@@ -183,6 +183,12 @@ def set_target():
             rgb = cv2.resize(rgb , (full_resolution[0], scaled_y))
             np.save("target.npy",rgb)
             # TODO orig_picとしてsaveする
+                        # rgb = rgb.convert("RGB")
+            # 画像保存　更新
+            bgr_target = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+            print(bgr_target.size)
+            print(bgr_target.shape)
+            cv2.imwrite(app.config['ORIG_PIC_PATH'],bgr_target)
 
             h,w,cv = rgb.shape
             wb = w // pixel_resolution
@@ -197,7 +203,7 @@ def set_target():
                     pickle.dump(rgb_block, f)
             allocated = np.zeros((hb,wb),dtype=bool) # 初期化
             np.save('allocated.npy',allocated)
-            shutil.copyfile(app.config['MAIN_PIC_PATH'], app.config['ORIG_PIC_PATH'])
+            shutil.copyfile(app.config['ORIG_PIC_PATH'], app.config['MAIN_PIC_PATH'])
             return redirect(url_for("uploads_file"))
 
     return render_template("admin.html")

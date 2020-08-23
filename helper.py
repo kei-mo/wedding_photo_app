@@ -6,7 +6,8 @@ import numpy as np
 
 def get_rgb_from_path(path):
     image  = Image.open(path) # TODO:opencvに書き直す
-    rgb = asarray(image)[:,:,:3]
+    image = image.convert("RGB")
+    rgb = asarray(image)
     return rgb
 
 
