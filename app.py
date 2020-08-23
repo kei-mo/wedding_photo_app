@@ -177,10 +177,23 @@ def set_target():
             # hsv = cv2.resize(hsv , full_resolution)
 
 
+            # check file resolution and trim
             rgb = get_rgb_from_path(app.config['MAIN_PIC_PATH'])
             rgb_shape = rgb.shape #(x,y,3)
-            scaled_y = round(full_resolution[0] / rgb_shape[0] * rgb_shape[1])
-            rgb = cv2.resize(rgb , (scaled_y, full_resolution[0]))
+            aspect_ratio = rgb_shape[0]/rgb_shape[1]
+
+            if aspect_ratio>9/16: # 縦が長いので、縦をトリミングする
+                h = int(rgb_shape[1]*9/16)
+                rgb = rgb[int(rgb_shape[0]/2-h/2):int(rgb_shape[0]/2+h/2),:,:]
+                print('縦長')
+            else: # 横が長いので、横をトリミングする
+                w = int(rgb_shape[0]/9*16)
+                rgb= rgb[:,int(rgb_shape[1]/2-w/2):int(rgb_shape[1]/2+w/2),:]
+                print('横長')
+
+                    
+            # scaled_y = round(full_resolution[0] / rgb_shape[0] * rgb_shape[1])
+            rgb = cv2.resize(rgb , (full_resolution[1], full_resolution[0]))
             np.save("target.npy",rgb)
             bgr_target = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
             cv2.imwrite(app.config['ORIG_PIC_PATH'],bgr_target)
