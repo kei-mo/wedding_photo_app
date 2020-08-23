@@ -130,7 +130,7 @@ def uploads_file():
             img1.putalpha(80)
             img2 = Image.open(app.config['ORIG_PIC_PATH'])
             img2.putalpha(250)
-            bg = Image.new("RGBA", full_resolution, (255, 255, 255, 0))
+            bg = Image.new("RGBA", full_resolution[::-1], (255, 255, 255, 0))
             bg.paste(img2, (0, 0), img2)
             bg.paste(img1, (0, 0), img1)
             bg = bg.convert("RGB")
@@ -179,20 +179,10 @@ def set_target():
 
             rgb = get_rgb_from_path(app.config['MAIN_PIC_PATH'])
             rgb_shape = rgb.shape #(x,y,3)
-            print(rgb_shape)
             scaled_y = round(full_resolution[0] / rgb_shape[0] * rgb_shape[1])
-            print("full res")
-            print(full_resolution)
-            print((full_resolution[0], scaled_y))
             rgb = cv2.resize(rgb , (scaled_y, full_resolution[0]))
-            print(rgb.shape)
             np.save("target.npy",rgb)
-            # TODO orig_picとしてsaveする
-                        # rgb = rgb.convert("RGB")
-            # 画像保存　更新
             bgr_target = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
-            print(bgr_target.size)
-            print(bgr_target.shape)
             cv2.imwrite(app.config['ORIG_PIC_PATH'],bgr_target)
 
             h,w,cv = rgb.shape
