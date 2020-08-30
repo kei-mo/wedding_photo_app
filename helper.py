@@ -17,6 +17,13 @@ def get_bgr_info(img):
     avg_r = int(np.mean(img[:,:,2]))
     return avg_b, avg_g, avg_r
 
+def get_rgb_info(img):
+    avg_r = int(np.mean(img[:,:,0]))
+    avg_g = int(np.mean(img[:,:,1]))
+    avg_b = int(np.mean(img[:,:,2]))
+    return avg_r, avg_g, avg_b
+
+
 
 def get_hsv_from_path(path):
     image  = cv2.imread(path)

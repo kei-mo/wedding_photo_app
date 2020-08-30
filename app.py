@@ -9,7 +9,7 @@ from werkzeug.utils import secure_filename
 from flask import send_from_directory
 # from livereload import Server, shell
 import numpy as np
-from helper import get_hsv_from_path, get_hsv_info,get_bgr_info,get_rgb_from_path
+from helper import get_hsv_from_path, get_hsv_info,get_bgr_info,get_rgb_from_path,get_rgb_info
 import pickle
 import cv2
 import copy
@@ -111,6 +111,10 @@ def uploads_file():
             thresh = 1000
             overwrite = dist<thresh # blockw*blockhの二次元行列にboolenが入った形
             overwrite = (overwrite &  np.logical_not(allocated)) #すでに挿入されているところには入れない
+            
+            overwrite_dist = overwrite * dist
+            
+            
             allocated = (overwrite | allocated)
             
             # 挿入
@@ -205,7 +209,8 @@ def set_target():
             for x in range(wb):
                 for y in range(hb):
                     block = rgb[pixel_resolution*y:pixel_resolution*y + pixel_resolution, pixel_resolution*x:pixel_resolution*x+pixel_resolution,    :]
-                    avg_b, avg_g, avg_r = get_bgr_info(block)
+                    # avg_b, avg_g, avg_r = get_bgr_info(block)
+                    avg_r, avg_g, avg_b = get_rgb_info(block)
                     rgb_block[y,x,:] = [avg_r, avg_g, avg_b] 
                 with open("rgb_block.pkl", "wb") as f:
                     pickle.dump(rgb_block, f)
