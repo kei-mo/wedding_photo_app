@@ -9,7 +9,7 @@ from werkzeug.utils import secure_filename
 from flask import send_from_directory
 # from livereload import Server, shell
 import numpy as np
-from helper import get_hsv_from_path, get_hsv_info,get_bgr_info,get_rgb_from_path,get_rgb_info
+from helper import *
 import pickle
 import cv2
 import copy
@@ -37,7 +37,6 @@ app.debug = True
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAIN_PIC_PATH'] = main_pic_path
 app.config['ORIG_PIC_PATH'] = orig_pic_path
-app.config['CHECK_PIC_PATH'] = './static/img/colorcomp.jpg'
 
 
 # global constant
@@ -102,11 +101,16 @@ def uploads_file():
             # upload された画像のr,g,bの平均を計算
             rgb = get_rgb_from_path(os.path.join(app.config['UPLOAD_FOLDER'], filename))
             rgb = cv2.resize(rgb , (pixel_resolution, pixel_resolution))
-            r,g,b = np.mean(rgb[:,:,0]), np.mean(rgb[:,:,1]), np.mean(rgb[:,:,2])
+
+            common_color, _ = kmeans_process(rgb,3)
+            r,g,b = common_color[0,0], common_color[0,1], common_color[0,2]
+
+            # r,g,b = np.mean(rgb[:,:,0]), np.mean(rgb[:,:,1]), np.mean(rgb[:,:,2])
 
             # 距離を計算
             deltaR, deltaG, deltaB = rgb_block[:,:,0] - r, rgb_block[:,:,1] - g, rgb_block[:,:,2] - b
-            dist = np.sqrt(2*deltaR**2 + 4*deltaG**2 + 3*deltaB**2) # 距離の計算　blockw*blockhの二次元行列
+            # dist = np.sqrt(2*deltaR**2 + 4*deltaG**2 + 3*deltaB**2) # 距離の計算　blockw*blockhの二次元行列
+            dist = np.sqrt(deltaR**2 + deltaG**2 + deltaB**2) # 距離の計算　blockw*blockhの二次元行列
 
             # dist が一定の値以下のblock
             thresh = 30
@@ -132,9 +136,9 @@ def uploads_file():
             # img = Image.fromarray(hsv)
 
             img1 = Image.open(app.config['MAIN_PIC_PATH'])
-            img1.putalpha(150)
+            img1.putalpha(80)
             img2 = Image.open(app.config['ORIG_PIC_PATH'])
-            img2.putalpha(200)
+            img2.putalpha(250)
             bg = Image.new("RGBA", full_resolution[::-1], (255, 255, 255, 0))
             bg.paste(img2, (0, 0), img2)
             bg.paste(img1, (0, 0), img1)
@@ -151,47 +155,6 @@ def uploads_file():
         # target.npyを画像にする下に手渡す
         return render_template("index.html")
 
-@app.route('/check', methods=['GET', 'POST'])
-def check():
-    # リクエストがポストかどうかの判別
-    if request.method == 'POST':
-        # ファイルがなかった場合の処理
-        if 'file' not in request.files:
-            flash('ファイルがありません')
-            return redirect(request.url)
-        # データの取り出し
-        file = request.files['file']
-        # ファイル名がなかった時の処理
-        if file.filename == '':
-            flash('ファイルがありません')
-            return redirect(request.url)
-        # ファイルのチェック
-        if file and allwed_file(file.filename):
-            # 危険な文字を削除（サニタイズ処理）
-            filename = secure_filename(file.filename)
-            # ファイルの保存
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-
-    
-            # upload された画像のr,g,bの平均を計算
-            resolution = 1000
-            rgb = get_rgb_from_path(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            rgb = cv2.resize(rgb , (resolution, resolution))
-            r,g,b = np.mean(rgb[:,:,0]), np.mean(rgb[:,:,1]), np.mean(rgb[:,:,2])
-
-            mean_color = np.ones((resolution, resolution, 3)).astype(np.uint8) * np.array([r,g,b]).astype(np.uint8)
-            check = np.concatenate((rgb, mean_color), axis=1)
-            check = cv2.cvtColor(check, cv2.COLOR_RGB2BGR)
-            cv2.imwrite(app.config['CHECK_PIC_PATH'],check)
-
-
-            return render_template("colorcheck.html")
-
-    if request.method == 'GET':
-        print(current_app)
-        print(dir(current_app))
-        # target.npyを画像にする下に手渡す
-        return render_template("colorcheck.html")
 
 @app.route('/preview', methods=['GET', 'POST'])
 def preview():
@@ -256,7 +219,7 @@ def set_target():
                     rgb_block[y,x,:] = [avg_r, avg_g, avg_b] 
                 with open("rgb_block.pkl", "wb") as f:
                     pickle.dump(rgb_block, f)
-            allocated = np.zeros((hb,wb),dtype=bool) # 初期化
+            allocated = np.zeros(( hb ,wb),dtype=bool) # 初期化
             np.save('allocated.npy',allocated)
             shutil.copyfile(app.config['ORIG_PIC_PATH'], app.config['MAIN_PIC_PATH'])
             return redirect(url_for("uploads_file"))

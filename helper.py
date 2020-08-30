@@ -3,6 +3,27 @@ from numpy import asarray
 import cv2
 from scipy import stats
 import numpy as np
+import scipy.cluster
+from collections import Counter
+
+def kmeans_process(img, n_cluster):
+    """return main color(rgb)"""
+    w = img.shape[1]
+    h = img.shape[0]
+    color_arr = img.reshape(h*w,3)
+    color_arr = color_arr.astype(np.float)
+    codebook, distortion = scipy.cluster.vq.kmeans(color_arr, n_cluster)  # クラスタ中心
+    code, _ = scipy.cluster.vq.vq(color_arr, codebook)  # 各データがどのクラスタに属しているか
+    n_data = Counter(code)
+    n_data = n_data.most_common()
+    colors = []
+    nums = []
+    for data in n_data:
+        colors.append(list(map(int,codebook[data[0]])))
+        nums.append(data[1])
+    colors = np.array(colors)
+    return colors,nums
+
 
 def get_rgb_from_path(path):
     image  = Image.open(path) # TODO:opencvに書き直す
