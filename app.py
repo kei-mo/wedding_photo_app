@@ -9,7 +9,7 @@ from werkzeug.utils import secure_filename
 from flask import send_from_directory
 # from livereload import Server, shell
 import numpy as np
-from helper import get_hsv_from_path, get_hsv_info,get_bgr_info,get_rgb_from_path
+from helper import get_hsv_from_path, get_hsv_info,get_bgr_info,get_rgb_from_path,get_rgb_info
 import pickle
 import cv2
 import copy
@@ -112,6 +112,10 @@ def uploads_file():
             thresh = 30
             overwrite = dist<thresh # blockw*blockhの二次元行列にboolenが入った形
             overwrite = (overwrite &  np.logical_not(allocated)) #すでに挿入されているところには入れない
+            
+            overwrite_dist = overwrite * dist
+            
+            
             allocated = (overwrite | allocated)
             
             # 挿入
@@ -219,10 +223,23 @@ def set_target():
             # hsv = cv2.resize(hsv , full_resolution)
 
 
+            # check file resolution and trim
             rgb = get_rgb_from_path(app.config['MAIN_PIC_PATH'])
             rgb_shape = rgb.shape #(x,y,3)
-            scaled_y = round(full_resolution[0] / rgb_shape[0] * rgb_shape[1])
-            rgb = cv2.resize(rgb , (scaled_y, full_resolution[0]))
+            aspect_ratio = rgb_shape[0]/rgb_shape[1]
+
+            if aspect_ratio>9/16: # 縦が長いので、縦をトリミングする
+                h = int(rgb_shape[1]*9/16)
+                rgb = rgb[int(rgb_shape[0]/2-h/2):int(rgb_shape[0]/2+h/2),:,:]
+                print('縦長')
+            else: # 横が長いので、横をトリミングする
+                w = int(rgb_shape[0]/9*16)
+                rgb= rgb[:,int(rgb_shape[1]/2-w/2):int(rgb_shape[1]/2+w/2),:]
+                print('横長')
+
+                    
+            # scaled_y = round(full_resolution[0] / rgb_shape[0] * rgb_shape[1])
+            rgb = cv2.resize(rgb , (full_resolution[1], full_resolution[0]))
             np.save("target.npy",rgb)
             bgr_target = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
             cv2.imwrite(app.config['ORIG_PIC_PATH'],bgr_target)
@@ -234,7 +251,8 @@ def set_target():
             for x in range(wb):
                 for y in range(hb):
                     block = rgb[pixel_resolution*y:pixel_resolution*y + pixel_resolution, pixel_resolution*x:pixel_resolution*x+pixel_resolution,    :]
-                    avg_b, avg_g, avg_r = get_bgr_info(block)
+                    # avg_b, avg_g, avg_r = get_bgr_info(block)
+                    avg_r, avg_g, avg_b = get_rgb_info(block)
                     rgb_block[y,x,:] = [avg_r, avg_g, avg_b] 
                 with open("rgb_block.pkl", "wb") as f:
                     pickle.dump(rgb_block, f)
