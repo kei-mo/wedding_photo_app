@@ -37,6 +37,7 @@ app.debug = True
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAIN_PIC_PATH'] = main_pic_path
 app.config['ORIG_PIC_PATH'] = orig_pic_path
+app.config['CHECK_PIC_PATH'] = './static/img/colorcomp.jpg'
 
 
 # global constant
@@ -108,7 +109,7 @@ def uploads_file():
             dist = np.sqrt(2*deltaR**2 + 4*deltaG**2 + 3*deltaB**2) # 距離の計算　blockw*blockhの二次元行列
 
             # dist が一定の値以下のblock
-            thresh = 1000
+            thresh = 30
             overwrite = dist<thresh # blockw*blockhの二次元行列にboolenが入った形
             overwrite = (overwrite &  np.logical_not(allocated)) #すでに挿入されているところには入れない
             allocated = (overwrite | allocated)
@@ -127,9 +128,9 @@ def uploads_file():
             # img = Image.fromarray(hsv)
 
             img1 = Image.open(app.config['MAIN_PIC_PATH'])
-            img1.putalpha(80)
+            img1.putalpha(150)
             img2 = Image.open(app.config['ORIG_PIC_PATH'])
-            img2.putalpha(250)
+            img2.putalpha(200)
             bg = Image.new("RGBA", full_resolution[::-1], (255, 255, 255, 0))
             bg.paste(img2, (0, 0), img2)
             bg.paste(img1, (0, 0), img1)
@@ -146,6 +147,47 @@ def uploads_file():
         # target.npyを画像にする下に手渡す
         return render_template("index.html")
 
+@app.route('/check', methods=['GET', 'POST'])
+def check():
+    # リクエストがポストかどうかの判別
+    if request.method == 'POST':
+        # ファイルがなかった場合の処理
+        if 'file' not in request.files:
+            flash('ファイルがありません')
+            return redirect(request.url)
+        # データの取り出し
+        file = request.files['file']
+        # ファイル名がなかった時の処理
+        if file.filename == '':
+            flash('ファイルがありません')
+            return redirect(request.url)
+        # ファイルのチェック
+        if file and allwed_file(file.filename):
+            # 危険な文字を削除（サニタイズ処理）
+            filename = secure_filename(file.filename)
+            # ファイルの保存
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+
+    
+            # upload された画像のr,g,bの平均を計算
+            resolution = 1000
+            rgb = get_rgb_from_path(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            rgb = cv2.resize(rgb , (resolution, resolution))
+            r,g,b = np.mean(rgb[:,:,0]), np.mean(rgb[:,:,1]), np.mean(rgb[:,:,2])
+
+            mean_color = np.ones((resolution, resolution, 3)).astype(np.uint8) * np.array([r,g,b]).astype(np.uint8)
+            check = np.concatenate((rgb, mean_color), axis=1)
+            check = cv2.cvtColor(check, cv2.COLOR_RGB2BGR)
+            cv2.imwrite(app.config['CHECK_PIC_PATH'],check)
+
+
+            return render_template("colorcheck.html")
+
+    if request.method == 'GET':
+        print(current_app)
+        print(dir(current_app))
+        # target.npyを画像にする下に手渡す
+        return render_template("colorcheck.html")
 
 @app.route('/preview', methods=['GET', 'POST'])
 def preview():
